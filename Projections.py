@@ -107,42 +107,6 @@ ds.add_field(("flash", "plasma_beta"),  function=_plasma_beta, units="dimensionl
 ds.add_field(("flash", "jeans_length"),  function=_jeans_length, units="cm",sampling_type="cell")
 ds.add_field(("flash", "jeans_number"),  function=_jeans_number, units="dimensionless",sampling_type="cell")
 
-def sink_positions(dataset): # data = dd
-    w = 0.01
-    # Here we calculate the positions of the stars in pixels given the com
-    data = dataset.all_data()
-    xpos = np.array(data[('io', 'particle_posx')]) #in cm
-    ypos = np.array(data[('io', 'particle_posy')]) #1 cm = 3,24078e-19 pc
-    zpos = np.array(data[('io', 'particle_posz')])
-    c = com(dataset,None)
-    pix = w/1000 * 3.08567758128e18 # cm
-    xpos = (xpos-c[0])/pix 
-    ypos = (ypos-c[1])/pix
-    zpos = (zpos-c[2])/pix 
-    pos = np.array([xpos, ypos, zpos])
-    mask = (pos >= -500) & (pos <= 500)
-    valid_mask = mask.all(axis=0)  
-    filtered_pos = pos[:, valid_mask] *2.06265 # AU/pix
-    return filtered_pos
-
-# Saving star positions if needed
-print('Would you like to save the sink positions at this step?')
-while True:
-    pos = input('Type "y" or "n": ')
-    if pos == 'y':
-        print('Calculating sink positions..')
-        sinkpos = sink_positions(ds)
-        print('Saving..')
-        np.save('sinkpos_py_'+str(step)+'.npy',sinkpos)
-        print('Positions saved. Proceeding..')
-        break
-    elif pos == 'n':
-        print('Okay! Proceeding..')
-        break
-    else:
-        print("Incorrect input, please try again.")
-
-
 #------------------------------------------------------------------------------------------------------
 
 def com(dataset, unit): #calculates com at this timestep in cm or another desired unit
@@ -301,8 +265,58 @@ def make_projections(field,axis):
             print("Saving..")
             np.save(f'proj_{axis}_'+str(field_name)+'_'+str(step)+'.npy',proj)
     return
+    
+def sink_positions(dataset): # data = dd
+    w = 0.01
+    # Here we calculate the positions of the stars in pixels given the com
+    data = dataset.all_data()
+    xpos = np.array(data[('io', 'particle_posx')]) #in cm
+    ypos = np.array(data[('io', 'particle_posy')]) #1 cm = 3,24078e-19 pc
+    zpos = np.array(data[('io', 'particle_posz')])
+    c = com(dataset,None)
+    pix = w/1000 * 3.08567758128e18 # cm
+    xpos = (xpos-c[0])/pix 
+    ypos = (ypos-c[1])/pix
+    zpos = (zpos-c[2])/pix 
+    pos = np.array([xpos, ypos, zpos])
+    mask = (pos >= -500) & (pos <= 500)
+    valid_mask = mask.all(axis=0)  
+    filtered_pos = pos[:, valid_mask] *2.06265 # AU/pix
+    return filtered_pos
 
 #---------------------------------------------------------------------------------------------------------
+
+print('Would you like to save the sink positions at this step?')
+while True:
+    pos = input('Type "y" or "n": ')
+    if pos == 'y':
+        print('Calculating sink positions..')
+        sinkpos = sink_positions(ds)
+        print('Saving..')
+        np.save('sinkpos_py_'+str(step)+'.npy',sinkpos)
+        print('Positions saved. Proceeding..')
+        break
+    elif pos == 'n':
+        print('Okay! Proceeding..')
+        break
+    else:
+        print("Incorrect input, please try again.")
+
+print('Would you like to save the disk basis vectors at this step?')
+while True:
+    basis = input('Type "y" or "n": ')
+    if basis == 'y':
+        print('Calculating basis..')
+        vecs = matrix_Lbasis(ds)
+        print('Saving..')
+        np.save('matrixLbasis_py_'+str(step)+'.npy',vecs)
+        print('Positions saved. Proceeding..')
+        break
+    elif basis == 'n':
+        print('Okay! Proceeding..')
+        break
+    else:
+        print("Incorrect input, please try again.")
 
 ('\n')
 field = get_field()
