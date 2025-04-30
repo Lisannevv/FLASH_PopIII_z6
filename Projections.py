@@ -291,28 +291,12 @@ while True:
     pos = input('Type "y" or "n": ')
     if pos == 'y':
         print('Calculating sink positions..')
-        sinkpos = sink_positions(ds)
+        sinkpos = np.dot(matrix_Lbasis(ds),sink_positions(ds))
         print('Saving..')
         np.save('sinkpos_py_'+str(step)+'.npy',sinkpos)
         print('Positions saved. Proceeding..')
         break
     elif pos == 'n':
-        print('Okay! Proceeding..')
-        break
-    else:
-        print("Incorrect input, please try again.")
-
-print('Would you like to save the disk basis vectors at this step?')
-while True:
-    basis = input('Type "y" or "n": ')
-    if basis == 'y':
-        print('Calculating basis..')
-        vecs = matrix_Lbasis(ds)
-        print('Saving..')
-        np.save('matrixLbasis_py_'+str(step)+'.npy',vecs)
-        print('Positions saved. Proceeding..')
-        break
-    elif basis == 'n':
         print('Okay! Proceeding..')
         break
     else:
