@@ -309,7 +309,6 @@ if axis == 'all':
     make_projections(field,axis)
 else:
     make_projections(field,int(axis))
-make_projections(field,axis)
 
 print('Complete!')
 
