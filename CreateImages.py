@@ -233,13 +233,13 @@ def get_axis():
         axis = input('Choose 0,1, or 2 with 2 being L, or type "all" if all axes are desired: ')
         if axis.isdigit() and int(axis) in [0,1,2]:
             print('Input correct.')
-            break
+            return int(axis)
         elif axis == "all":
             print('Input correct.')
-            break
+            return axis
         else:
             print('Input incorrect, please try again.')
-    return axis
+    
 
 def make_projections(field,axis):
     basis = matrix_Lbasis(ds)
@@ -298,8 +298,6 @@ def make_slices(field,axis):
     elif axis == "all":
         for axis in [0,1,2]:
             print(f'Creating a slice of the desired field along axis {axis}..')
-            vec = basis[2]
-            north = basis
             if axis == 1:
                 vec = basis[axis]
                 north = basis[2]
@@ -315,6 +313,7 @@ def make_slices(field,axis):
             print("Saving..")
             np.savez(f"slice_{axis}_{field_name}_{step}.npz", data=slice)
     return
+
 
 def make_rendering():
     
