@@ -30,14 +30,14 @@ print('Hello! This Python script will create projections or slices of your FLASH
 where the basis vectors are those of the star forming disk, and then save these as 2D numpy files for you to plot as you wish.')
 print('\n')
 while True:
-    digits = input('Are your filenames of the form: Krome_Chem_rmhd_z6_hdf5_plt_cnt_(step) ? Type either "y" or "n": ')
+    digits = input('Are your filenames of the form: Krome_Chem_rmhd_hdf5_plt_cnt_(step) ? Type either "y" or "n": ')
 
     if digits == 'y': 
         step = input('Please type a 4-digit number, for example: 0480. This is the file-step of the plt/part file you wish for me to use. Please enter now: ')
         while True:
             if len(step) == 4 and step.isdigit():
                 print('Thank you!')
-                filename = f'Krome_Chem_rmhd_z6_hdf5_plt_cnt_{step}' 
+                filename = f'Krome_Chem_rmhd_hdf5_plt_cnt_{step}' 
                 print('Checking if the file exists..')
                 if os.path.exists(filename):
                     print(f'It "{filename}" exists!')
@@ -56,13 +56,14 @@ while True:
             print('Checking if the file exists..')
             if os.path.exists(filename):
                 print(f'It "{filename}" exists!')
-                step = input('Please type a 4-digit number, for example: 0480. This is the file-step of the file you just entered. Please enter the number: ')
                 while True:
+                    step = input('Please type a 4-digit number, for example: 0480. This is the file-step of the file you just entered. Please enter the number: ')
                     if len(step) == 4 and step.isdigit():
                         print('Input is of correct format, the script will now proceed.')
                         break
                     else:
                         step = input('That was not a four-digit number. Try again:')
+                break
             else:
                 print(f'The file "{filename}" could not be found. Please enter the filename again.')
     else:
@@ -313,7 +314,6 @@ def make_slices(field,axis):
             print("Saving..")
             np.savez(f"slice_{axis}_{field_name}_{step}.npz", data=slice)
     return
-
 
 def make_rendering():
     
