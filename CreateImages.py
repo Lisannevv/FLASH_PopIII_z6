@@ -66,6 +66,7 @@ while True:
                 break
             else:
                 print(f'The file "{filename}" could not be found. Please enter the filename again.')
+        break
     else:
         print('Neither y or n was entered. Try again.')
     
