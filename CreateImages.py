@@ -200,6 +200,8 @@ def proj_2darr_offaxis(ds, field, normal_vector,north_vector):
     res = [1000, 1000]    
     center = com(ds, None)
     weight = ("flash", "dens")
+    if field == "plasma_beta":
+        field = ("flash","plasma_beta")
     proj = off_axis_projection(ds,center=center,normal_vector=normal_vector,north_vector=north_vector,width=width,resolution=res,item=field,weight=weight)
     return np.array(proj)
 
