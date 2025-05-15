@@ -362,12 +362,15 @@ def sink_positions(dataset): # data = dd
 
 #---------------------------------------------------------------------------------------------------------
 
+
 print('Before we go further, would you like to save the sink positions at this step?')
 while True:
     pos = input('Type "y" or "n": ')
     if pos == 'y':
         print('Calculating sink positions..')
-        sinkpos = np.dot(matrix_Lbasis(ds),sink_positions(ds))
+        matrix = matrix_Lbasis(ds)
+        matrix[:,0]=[-matrix[0,0],-matrix[1,0],-matrix[2,0]]
+        sinkpos = np.dot(matrix,sink_positions(ds))
         print('Saving..')
         np.save('sinkpos_py_'+str(step)+'.npy',sinkpos)
         print('Positions saved. Proceeding..')
