@@ -44,7 +44,7 @@ while True:
                 filename = f'Krome_Chem_rmhd_hdf5_plt_cnt_{step}' 
                 print('Checking if the file exists..')
                 if os.path.exists(filename):
-                    print(f'It "{filename}" exists!')
+                    print(f'It exists!')
                     break
                 else:
                     print(f'The file "{filename}" could not be found. Make sure you are in the correct folder. The script will now close.')
@@ -59,7 +59,7 @@ while True:
             print(f'Thank you!')
             print('Checking if the file exists..')
             if os.path.exists(filename):
-                print(f'It "{filename}" exists!')
+                print(f'It exists!')
                 while True:
                     step = input('Please type a 4-digit number, for example: 0480. This is the file-step of the file you just entered. Please enter the number: ')
                     if len(step) == 4 and step.isdigit():
@@ -126,6 +126,43 @@ def _numdens(field,data):
     return((data["density"]/mass_hydrogen_cgs)*(data['h   ']/1 + data['h2  ']/2 + 0.2492/4 + data['hp  ']/1 + 
                                                data['hd  ']/3 + data['d   ']/2))
 
+def _radial_velocity(field,data):
+    # Get positions w.r.t. COM
+    sinkcom = com(ds,None)
+    x = np.array(data['x']) - sinkcom[0]
+    y = np.array(data['y']) - sinkcom[1]
+    z = np.array(data['z']) - sinkcom[2]
+    r = 1e-3*np.vstack((x, y, z)).T #in km
+
+    # Get velocities and correct for centre velocity
+    velx = np.array(data['velocity_x'])
+    vely = np.array(data['velocity_y'])
+    velz = np.array(data['velocity_z'])
+    v_com = vcom(ds)
+    velx -= v_com[0]
+    vely -= v_com[1]
+    velz -= v_com[2]
+    v = 1e-3*np.vstack((velx, vely, velz)).T #in km/s
+
+    # Radial velocity
+    v_rad = np.sum(r * v, axis=1) / np.linalg.norm(r, axis=1)
+    return data.ds.arr(v_rad, 'km/s')
+
+def _cartesian_velocity(field,data):
+    # Get velocities and correct for centre velocity
+    velx = np.array(data['velocity_x'])
+    vely = np.array(data['velocity_y'])
+    velz = np.array(data['velocity_z'])
+    v_com = vcom(ds)
+    velx -= v_com[0]
+    vely -= v_com[1]
+    velz -= v_com[2]
+    v = 1e-3*np.vstack((velx, vely, velz)).T #in km/s
+
+    # Radial velocity
+    v_cart = np.sqrt(v[:,0]**2+v[:,1]**2+v[:,2]**2)
+    return data.ds.arr(v_cart, 'km/s')
+
 # We might need a reference file.. Let's go through another round of while loops and try except statements.. yay!
 print('\n')
 print(f'Loading data for file {step}..')
@@ -149,7 +186,7 @@ except YTFieldNotFound:
                     filename = f'Krome_Chem_rmhd_hdf5_plt_cnt_{ref_step}' 
                     print('Checking if the file exists..')
                     if os.path.exists(filename):
-                        print(f'It "{filename}" exists!')
+                        print(f'The file exists!')
                         ref_ds = yt.load(filename)
                         ref_ds.add_field(("flash", "numdens"),  function=_numdens, units="cm**-3",sampling_type="cell")
                         try:
@@ -171,7 +208,7 @@ except YTFieldNotFound:
                 print(f'Thank you!')
                 print('Checking if the file exists..')
                 if os.path.exists(filename):
-                    print(f'It "{filename}" exists!')
+                    print(f'It exists!')
                     ref_ds = yt.load(filename)
                     ref_ds.add_field(("flash", "numdens"),  function=_numdens, units="cm**-3",sampling_type="cell")
                     try:
@@ -251,7 +288,12 @@ def matrix_Lbasis(ds): #Creates the new basis with angular momentum vector as z.
     return np.array([b2,b1,L])
 
 field_units = pd.DataFrame([["numdens", None,r"$n_{\rm{H}} \rm{(cm}^{-3}\rm{)}$", "log"],["temp", "K",r"$T\rm{(K)}$", None],\
-                            ["magnetic_field_magnitude","G","B (G)", "log"],["hp  ",None, r"$X_{H^{+}}$", "log"],[ "h2  ",None,r"$X_{H_2}$", "log"]], columns = ["field", "unit","label","scale"])
+                            ["magnetic_field_magnitude","G","B (G)", "log"],["hp  ",None, r"$\log{X_{H^{+}}}$", "log"],\
+                                [ "h2  ",None,r"$\log{X_{H_2}}$", "log"],[ "v_rad","km/s",r"$\rm{km}$$\rm{s}^{-1}$", None],
+                                [ "sigma_vr","km/s",r"$\rm{km}$$\rm{s}^{-1}$", None],[ "sigma_v","km/s",r"$\rm{km}$$\rm{s}^{-1}$", None],
+                                [ "v_cart","km/s",r"$\rm{km}$$\rm{s}^{-1}$", None]],\
+                                      columns = ["field", "unit","label","scale"])
+
 
 def Radial_Profile(ds,field):
     #Create disk and yt profile
@@ -350,23 +392,193 @@ def Radial_Profile_Zaxis(ds,field):
     
     return r, n
 
+def Radial_Profile_sigma_v(ds,step,vel): #vel is either 'v_rad' or 'v_cart'
+    #Get the correct YT (derived) field
+    if vel == 'sigma_v':
+        field = 'v_cart'
+    elif vel == 'sigma_vr':
+        field = 'v_rad'
+    else:
+        field = vel
+    #Create disk and yt profile
+    disk_radius = 0.005 #0.005 pc ~= 1000 AU
+    if int(step) <= 220:
+        sinks_com = ref_com
+    else:
+        sinks_com = com(ds, None)
+    L = L_vector(ds)
+    disk = ds.disk(sinks_com, L, (disk_radius, "pc"), (200, "au"))
+    unit = np.array(field_units[field_units["field"] == field]["unit"])[0]
+    if unit != None:
+        v = disk[field].to(unit).v
+    else:
+        v = disk[field].v
+    v2 = v**2
+    cell_mass = disk["cell_mass"].v/1.989e33 #solar mass
+
+    """
+    First, we transform positions into disk coordinate system and extract R values.
+    Without this procedure, you would take: radii = disk["radius"].to("au").v
+    """
+    sinks_com_yt = yt.YTArray(sinks_com, 'cm').to('au')
+    x = np.array(disk['x'].to('au').v) - sinks_com_yt[0].v
+    y = disk['y'].to('au').v - sinks_com_yt[1].v
+    z = disk['z'].to('au').v - sinks_com_yt[2].v
+    pos = np.vstack([x,y,z])
+    A = matrix_Lbasis(ds)
+    pos_Lcoords = np.dot(A,pos)
+    radii = np.sqrt(pos_Lcoords[0,:]**2+pos_Lcoords[1,:]**2) 
+    #Get radial bins
+    bins = 60
+    #bin_edges = np.logspace(np.log10(radii.min()), np.log10(radii.max()), bins + 1)
+    bin_edges = np.linspace(radii.min(), radii.max(), bins + 1)
+    r = 0.5 * (bin_edges[:-1] + bin_edges[1:])
+
+    #Calculate velocity dispersion for each radial bin
+    
+    #Prepare data, ascending order for radius
+    data_for_binning = pd.DataFrame({'R': radii, 'v':v*cell_mass, 'v2': v2, 'mass':cell_mass})
+    sorted_data = data_for_binning.sort_values(by='R')
+    radii = np.array(sorted_data['R'])
+    v = np.array(sorted_data['v'])
+    v2 = np.array(sorted_data['v2'])
+    cell_mass = np.array(sorted_data['mass'])
+
+    #Mass-weighted mean
+    v_weighted_sum = binned_statistic(radii, v * cell_mass, bins=bin_edges, statistic="sum")[0]
+    v2_weighted_sum = binned_statistic(radii, v2 * cell_mass, bins=bin_edges, statistic="sum")[0]
+    mass_per_bin = binned_statistic(radii, cell_mass, bins=bin_edges, statistic="sum")[0]
+
+    #Avoid division by zero
+    mean_v = np.nan_to_num(v_weighted_sum / mass_per_bin, nan=0.0)
+    mean_v2 = np.nan_to_num(v2_weighted_sum / mass_per_bin, nan=0.0)
+
+    #Get the velocity dispersion
+    sigma_v = np.sqrt(mean_v2 - mean_v**2)
+    return r, sigma_v
+
+def ZProfile_sigma_v(ds,step,vel):
+    #Get the correct YT (derived) field
+    if vel == 'sigma_v':
+        field = 'v_cart'
+    elif vel == 'sigma_vr':
+        field = 'v_rad'
+    else:
+        field = vel
+    #Create disk and yt profile
+    disk_radius = 0.005 #0.005 pc ~= 1000 AU
+    if int(step) <= 220:
+        sinks_com = ref_com
+    else:
+        sinks_com = com(ds, None)
+    L = L_vector(ds)
+    disk = ds.disk(sinks_com, L, (disk_radius, "pc"), (200, "au"))
+    unit = np.array(field_units[field_units["field"] == field]["unit"])[0]
+    if unit != None:
+        v = disk[field].to(unit).v
+    else:
+        v = disk[field].v
+    v2 = v**2
+    cell_mass = disk["cell_mass"].v/1.989e33 #solar mass
+
+    """
+    First, we transform positions into disk coordinate system and extract R values.
+    Without this procedure, you would take: radii = disk["radius"].to("au").v
+    """
+    #First, we transform positions into disk coordinate system
+    sinks_com_yt = yt.YTArray(sinks_com, 'cm').to('au')
+    x = np.array(disk['x'].to('au').v) - sinks_com_yt[0].v
+    y = disk['y'].to('au').v - sinks_com_yt[1].v
+    z = disk['z'].to('au').v - sinks_com_yt[2].v
+    pos = np.vstack([x,y,z])
+    #print(np.shape(pos))
+    A = matrix_Lbasis(ds)
+    pos_Lcoords = np.dot(A,pos)
+    #print(np.shape(pos_Lcoords))
+    radii = pos_Lcoords[2,:]
+    #Get radial bins
+    bins = 60
+    #bin_edges = np.logspace(np.log10(radii.min()), np.log10(radii.max()), bins + 1)
+    bin_edges = np.linspace(radii.min(), radii.max(), bins + 1)
+    r = 0.5 * (bin_edges[:-1] + bin_edges[1:])
+
+    #Calculate velocity dispersion for each radial bin
+    
+    #Prepare data, ascending order for radius
+    data_for_binning = pd.DataFrame({'R': radii, 'v':v*cell_mass, 'v2': v2, 'mass':cell_mass})
+    sorted_data = data_for_binning.sort_values(by='R')
+    radii = np.array(sorted_data['R'])
+    v = np.array(sorted_data['v'])
+    v2 = np.array(sorted_data['v2'])
+    cell_mass = np.array(sorted_data['mass'])
+
+    #Mass-weighted mean
+    v_weighted_sum = binned_statistic(radii, v * cell_mass, bins=bin_edges, statistic="sum")[0]
+    v2_weighted_sum = binned_statistic(radii, v2 * cell_mass, bins=bin_edges, statistic="sum")[0]
+    mass_per_bin = binned_statistic(radii, cell_mass, bins=bin_edges, statistic="sum")[0]
+
+    #Avoid division by zero
+    mean_v = np.nan_to_num(v_weighted_sum / mass_per_bin, nan=0.0)
+    mean_v2 = np.nan_to_num(v2_weighted_sum / mass_per_bin, nan=0.0)
+
+    #Get the velocity dispersion
+    sigma_v = np.sqrt(mean_v2 - mean_v**2)
+    return r, sigma_v
 
 
 """
 Script: 
 """
 
-
 mass_hydrogen_cgs = yt.units.mass_hydrogen_cgs
 ds.add_field(("flash", "numdens"),  function=_numdens, units="cm**-3",sampling_type="cell")
+ds.add_field(("flash", "v_rad"),  function=_radial_velocity, units="km*s**-1",sampling_type="cell", force_override=True)
+ds.add_field(("flash", "v_cart"),  function=_cartesian_velocity, units="km*s**-1",sampling_type="cell", force_override=True)
 
-for field in field_units["field"]:
-    print("Creating radial profiles for field ["+field+"]..")
-    R,n_R = Radial_Profile(ds,field)
-    Rprof = np.vstack((R,n_R)).T
-    Z,n_Z = Radial_Profile_Zaxis(ds,field)
-    Zprof = np.vstack((Z,n_Z)).T
-    np.save(f'Rprof_{step}_{field}.npy',Rprof)
-    np.save(f'Zprof_{step}_{field}.npy',Zprof)
+regular = input('Would you like to create the default set of profiles, i.e. for fields nH, temperature, hydrogen mass fractions? Please type "y" or "n": ')
+while True:
+    if regular == 'y':
+        for field in field_units["field"]:
+            print("Creating radial profiles for field ["+field+"]..")
+            R,n_R = Radial_Profile(ds,field)
+            Rprof = np.vstack((R,n_R)).T
+            Z,n_Z = Radial_Profile_Zaxis(ds,field)
+            Zprof = np.vstack((Z,n_Z)).T
+            np.save(f'Rprof_{step}_{field}.npy',Rprof)
+            np.save(f'Zprof_{step}_{field}.npy',Zprof)
+        break
+    elif regular == 'n':
+        print('OK, proceeding..')
+        break
+    else:
+        regular = input('Invalid input. Please type either "y" or "n".')
+
+velocities = input('Would you like to create profiles for the radial velocity and radial velocity dispersion? Please type "y" or "n": ')
+while True: 
+    if velocities == 'y':
+        for field in ['v_rad','sigma_vr','sigma_v']:
+            print("Creating radial profiles for field ["+field+"]..")
+            if field == 'v_rad':
+                R,n_R = Radial_Profile(ds,field)
+                Rprof = np.vstack((R,n_R)).T
+                np.save(f'Rprof_{step}_{field}.npy',Rprof)
+                Z,n_Z = Radial_Profile_Zaxis(ds,field)
+                Zprof = np.vstack((Z,n_Z)).T
+                np.save(f'Zprof_{step}_{field}.npy',Zprof)
+            else:
+                R,n_R = Radial_Profile_sigma_v(ds,step, field)
+                Rprof = np.vstack((R,n_R)).T
+                np.save(f'Rprof_{step}_{field}.npy',Rprof)
+                Z,n_Z = ZProfile_sigma_v(ds, step, field)
+                Zprof = np.vstack((Z,n_Z)).T
+                np.save(f'Zprof_{step}_{field}.npy',Zprof)
+        break
+            
+    elif velocities == 'n':
+        print('OK..')
+        break
+    else:
+        velocities = input('Invalid input. Please type either "y" or "n".')
+    
 
 print('Complete!')
