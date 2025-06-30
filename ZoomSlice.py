@@ -225,8 +225,9 @@ def matrix_Lbasis(ds):
 
 def make_slices(ds,c,compare):
     w = 0.001
-    fields = ["temp","numdens","v_rad","v_phi","v_z","h2  "]
+    fields = ["temp","numdens","v_rad","v_phi","v_z","h2  ","hp  ","h   "]
     for j in range(len(fields)):
+        print(f'Creating a slice of: {fields[j]}')
         im = zoom_slice_disk_arr(ds,fields[j],w,c)
         if compare == False:
             np.save(f'slice_{step}_{fields[j]}.npy',im)
