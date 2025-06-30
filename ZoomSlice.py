@@ -361,7 +361,7 @@ while True:
 
 print('\n')
 
-print('Now we move on to making the slices..')
+print('Now we move on to making the slices, this may take a while..')
 
 make_slices(ds,c,False)
 #make_slices(ds,sinkcom+z6_nosf2_site)
