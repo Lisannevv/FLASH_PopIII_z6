@@ -64,6 +64,7 @@ while True:
 # Make the dataset and add number density and plasma beta fields
 
 frb_res = 2048
+w = 0.002
 
 def com(dataset, unit): #calculates com at this timestep in cm or another desired unit
     # Here, data is the dd variable
@@ -224,7 +225,7 @@ def matrix_Lbasis(ds):
     return np.array([b2,b1,L])
 
 def make_slices(ds,c,compare):
-    w = 0.001
+    
     fields = ["temp","numdens","v_rad","v_phi","v_z","h2  ","hp  ","h   "]
     for j in range(len(fields)):
         print(f'Creating a slice of: {fields[j]}')
@@ -348,7 +349,7 @@ while True:
     if pos == 'y':
         print('Calculating sink positions..')
         matrix = matrix_Lbasis(ds)
-        sinkpos = np.dot(matrix,offcenter_sink_positions(ds))
+        sinkpos = np.dot(matrix,offcenter_sink_positions(ds,c,w))
         print('Saving..')
         np.save('offcenter_sinkpos_'+str(step)+'.npy',sinkpos)
         print('Positions saved. Proceeding..')
