@@ -324,19 +324,33 @@ dens = np.array(dd["numdens"])
 print('Max number density is', np.round(np.max(dens)/1e13,2),'* 10^13 cm^-3')
 print("Let's see where the point of max density and max refinement is..")
 print("This point is (wrt COM):")
-# Find the cell with max density and max refinement level
 
+#Find the cell with max density and max refinement level
 ref = np.array(dd["grid_level"])
-index_max = int(np.argmax(dens))
+sorted_indices = np.argsort(dens)[::-1]
+target_ref = 13.0
+index_max = None
+for idx in sorted_indices:
+    if ref[idx] == target_ref:
+        index_max = idx
+        break
 
-x = float(np.array(dd["x"])[index_max])
-y = float(np.array(dd["y"])[index_max])
-z = float(np.array(dd["z"])[index_max])
+if index_max is not None:
+    print(f"Found densest cell at refinement level {target_ref} with index {index_max}")
+    
+    x = float(dd["x"][index_max])
+    y = float(dd["y"][index_max])
+    z = float(dd["z"][index_max])
+    
+    c = np.array([x, y, z])
+    cdiff = c-np.array(sinkcom)
+    print("Coordinates wrt sink COM:")
+else:
+    print(f"No cell found at refinement level {target_ref}")
 
-c = np.array([x,y,z])-np.array(sinkcom)
-print('x = ',np.round(c[0]*6.68458712e-14, 2), 'AU')
-print('y = ',np.round(c[1]*6.68458712e-14, 2), 'AU')
-print('z = ',np.round(c[2]*6.68458712e-14, 2), 'AU')
+print('x = ',np.round(cdiff[0]*6.68458712e-14, 2), 'AU')
+print('y = ',np.round(cdiff[1]*6.68458712e-14, 2), 'AU')
+print('z = ',np.round(cdiff[2]*6.68458712e-14, 2), 'AU')
 print('\n')
 
 z6_nosf2_site = [9.66969951e13, 1.17277591e14, -3.22801285e13] #cm
